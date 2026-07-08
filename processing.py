@@ -6,6 +6,7 @@ from torch_geometric.data import Data
 from skimage.segmentation import slic
 from skimage.graph import rag_mean_color
 import os
+import math
 
 def image_to_graph(filepath, target_pixels_per_segment):
     """
@@ -52,3 +53,9 @@ def image_to_graph(filepath, target_pixels_per_segment):
 
 def images_to_graph(filepaths, target_pixels_per_segment):
     return [image_to_graph(filepath, target_pixels_per_segment) for filepath in filepaths]
+
+# Encodes day of year in two values for use in GNN.
+# Cyclical, so December 31 and January 1 are only considered one day apart as opposed to 365
+def encode_date(day_of_year, period=365.25):
+    angle = 2 * math.pi * day_of_year / period
+    return torch.tensor([math.sin(angle), math.cos(angle)], dtype=torch.float)
