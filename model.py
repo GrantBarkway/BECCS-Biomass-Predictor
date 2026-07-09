@@ -5,16 +5,14 @@ import torch.nn.functional as F
 from processing import images_to_graph, encode_date
 from data.data import data
 
-hidden_channels_1 = 32
-heads = 2
+hidden_channels_1 = 64
+heads = 4
 out_channels = 14
-
-target_tensor = torch.tensor([[0.0, 1.0]], dtype=torch.float)
 
 class GAT(torch.nn.Module):
     def __init__(self, hidden_channels, out_channels, heads, date_dim=2):
         super(GAT, self).__init__()
-        self.conv1 = GATv2Conv((-1,-1), hidden_channels, heads=heads, concat=True, add_self_loops=False)
+        self.conv1 = GATv2Conv(-1, hidden_channels, heads=heads, concat=True, add_self_loops=False)
         self.conv2 = GATv2Conv(-1, hidden_channels, heads=1, concat=False, add_self_loops=False)
         self.lin = torch.nn.Linear(hidden_channels + date_dim, out_channels)
         
@@ -67,13 +65,13 @@ def train(graph_list, graph_information, epochs, batch_size=32):
         
         avg_loss = total_loss / len(graph_list)
         scheduler.step(avg_loss)
-
+        
         if epoch % 10 == 0:
             print(f'Epoch {epoch}, Loss: {avg_loss:.4f}')
     
     return model
 
-graph_data = images_to_graph(data.keys(), 100)
+graph_data = images_to_graph(data.keys(), 1000)
 graph_information = list(data.values())
 
 train(graph_data, graph_information, 500)
