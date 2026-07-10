@@ -209,4 +209,4 @@ def get_images(geojson_filepath, max_retries=5, samples_per_province=1):
         if successes < samples_per_province:
             print(f"WARNING: only {successes}/{samples_per_province} valid samples for {province_name} after {max_retries} attempts.")
 
-get_images("data/thailand-provinces-simplified.geojson", max_retries=5, samples_per_province=1)
+get_images("data/thailand-provinces-no-islands.geojson", max_retries=5, samples_per_province=5)

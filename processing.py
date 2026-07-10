@@ -8,6 +8,7 @@ import os
 import math
 from multiprocessing import Pool
 from functools import partial
+from data.data import data
 
 def image_to_graph(filepath, target_pixels_per_segment):
     """
@@ -73,3 +74,7 @@ def encode_date(day_of_year, period=365.25):
     """
     angle = 2 * math.pi * day_of_year / period
     return torch.tensor([math.sin(angle), math.cos(angle)], dtype=torch.float)
+
+# Make graph from the images in data.py
+# Does NOT train anything
+graph_data = images_to_graph(data.keys(), 1000, 64)
