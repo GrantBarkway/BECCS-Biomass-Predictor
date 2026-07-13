@@ -4,11 +4,16 @@ import numpy as np
 from torch_geometric.data import Data
 from skimage.segmentation import slic
 from skimage.graph import rag_mean_color
+from scipy import ndimage
 import os
 import math
 from multiprocessing import Pool
 from functools import partial
 from data.data import data
+
+torch.set_num_threads(1)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
 def image_to_graph(filepath, target_pixels_per_segment):
     """
@@ -20,40 +25,46 @@ def image_to_graph(filepath, target_pixels_per_segment):
     filename = os.path.basename(filepath).split(".")[0]
     image_data_file = "data/processed/" + filename + ".pt"
     if os.path.isfile(image_data_file):
-        return torch.load(image_data_file, weights_only=False)
+        image_file = torch.load(image_data_file, weights_only=False)
+        print("Filepath: ", image_data_file)
+        print("Num nodes: ", image_file.x.shape[0])
+        print("Num edges: ", image_file.edge_index.shape[1])
+        return image_file
     
     # Read all bands directly: shape (bands, height, width)
     with rasterio.open(filepath) as src:
         image_tensor = torch.from_numpy(src.read().astype(np.float32))
     
     channels, height, width = image_tensor.shape
-    n_segments = (height * width) / target_pixels_per_segment
+    n_segments = int((height * width) / target_pixels_per_segment)
     
-    # Segmentation needs 3 bands to segment off
+    # Segmentation from 3 bands
     rgb_for_slic = image_tensor[[2, 1, 0]].permute(1, 2, 0).numpy()
     rgb_for_slic = (rgb_for_slic / rgb_for_slic.max() * 255).astype(np.uint8)
 
     segments = slic(rgb_for_slic, n_segments=n_segments, start_label=0)
     rag = rag_mean_color(rgb_for_slic, segments)
     
-    # Full HWC array across all bands for computing per-segment means
     all_bands = image_tensor.permute(1, 2, 0).numpy()  # H, W, 10
     
+    node_labels = list(rag.nodes)
     x = np.array([
-        all_bands[segments == label].mean(axis=0)
-        for label in rag.nodes
-    ])
+        ndimage.mean(all_bands[:, :, band], labels=segments, index=node_labels)
+        for band in range(all_bands.shape[2])
+    ]).T
     x = torch.tensor(x, dtype=torch.float)
     
-    label_to_idx = {label: i for i, label in enumerate(rag.nodes)}
+    label_to_idx = {label: i for i, label in enumerate(node_labels)}
     edges = [[label_to_idx[u], label_to_idx[v]] for u, v in rag.edges]
     edges += [[j, i] for i, j in edges]
     edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
     
-    data = Data(x=x, edge_index=edge_index, num_nodes=len(rag.nodes))
+    data = Data(x=x, edge_index=edge_index, num_nodes=len(node_labels))
     data.validate(raise_on_error=True)
     data.contiguous()
     torch.save(data, image_data_file)
+    
+    print("Completed processing for filepath: ", filepath)
 
     return data
 
@@ -77,4 +88,5 @@ def encode_date(day_of_year, period=365.25):
 
 # Make graph from the images in data.py
 # Does NOT train anything
-graph_data = images_to_graph(data.keys(), 1000, 64)
+if __name__ == "__main__":
+    graph_data = images_to_graph(data.keys(), 100, 16)

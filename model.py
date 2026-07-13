@@ -5,7 +5,7 @@ import torch.nn.functional as F
 hidden_channels = 256
 heads = 8
 out_channels = 14
-epochs = 500
+epochs = 200
 
 class GAT(torch.nn.Module):
     def __init__(self, hidden_channels, out_channels, heads, date_dim=2):

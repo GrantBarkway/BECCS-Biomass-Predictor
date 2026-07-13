@@ -67,7 +67,16 @@ def train(graph_list, graph_information, epochs, batch_size=32):
     
     return model
 
-graph_data = images_to_graph(data.keys(), 1000, 10)
-graph_information = list(data.values())
+if __name__ == "__main__":
 
-train(graph_data, graph_information, epochs)
+    print("torch version : ", torch.__version__)
+    print("cuda available? : ", torch.cuda.is_available())
+    print("cuda version: ", torch.version.cuda)
+    print("cuda device count: ", torch.cuda.device_count())
+    device_ids = list(range(torch.cuda.device_count()))
+    print("cuda device id: ", *device_ids, sep=", ")
+
+    graph_data = images_to_graph(data.keys(), 50, 16)
+    graph_information = list(data.values())
+
+    train(graph_data, graph_information, epochs, 1)
