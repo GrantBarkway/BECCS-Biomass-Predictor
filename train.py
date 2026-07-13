@@ -3,7 +3,7 @@ from torch_geometric.loader import DataLoader
 from processing import images_to_graph, encode_date
 from data.data import data
 from torch.amp import autocast, GradScaler
-from model import GAT, hidden_channels, out_channels, heads, epochs
+from model import GIN, hidden_channels, out_channels, epochs
 import os
 
 # Stops fragmentation of memory, freeing up allocated but unused memory
@@ -18,7 +18,7 @@ def train(graph_list, graph_information, epochs, batch_size=32):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Training on: {device}")
     
-    model = GAT(hidden_channels, out_channels, heads).to(device)
+    model = GIN(hidden_channels, out_channels).to(device)
 
     optimiser = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -52,8 +52,11 @@ def train(graph_list, graph_information, epochs, batch_size=32):
         total_loss = 0.0
         for batch in loader:
             batch = batch.to(device, non_blocking=True)
+            assert not torch.isnan(batch.x).any(), "NaN in node features"
+            assert not torch.isnan(batch.y).any(), "NaN in targets"
+            assert not torch.isnan(batch.date_feat).any(), "NaN in date_feat"
             optimiser.zero_grad()
-            with autocast(device_type='cuda', dtype=torch.float16):
+            with autocast(device_type='cuda', dtype=torch.bfloat16):
                 output = model(batch.x, batch.edge_index, batch.batch, batch.date_feat)
                 loss = criterion(output, batch.y)
             scaler.scale(loss).backward()

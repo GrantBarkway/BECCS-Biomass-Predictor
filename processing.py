@@ -30,10 +30,12 @@ def image_to_graph(filepath, target_pixels_per_segment):
         print("Num nodes: ", image_file.x.shape[0])
         print("Num edges: ", image_file.edge_index.shape[1])
         return image_file
+    else:
+        print("Something went wrong with filepath: ", image_data_file)
     
     # Read all bands directly: shape (bands, height, width)
     with rasterio.open(filepath) as src:
-        image_tensor = torch.from_numpy(src.read().astype(np.float32))
+        image_tensor = torch.from_numpy(src.read().astype(np.float16))
     
     channels, height, width = image_tensor.shape
     n_segments = int((height * width) / target_pixels_per_segment)
