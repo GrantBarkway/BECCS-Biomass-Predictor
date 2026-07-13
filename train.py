@@ -2,7 +2,12 @@ import torch
 from torch_geometric.loader import DataLoader
 from processing import images_to_graph, encode_date
 from data.data import data
+from torch.amp import autocast, GradScaler
 from model import GAT, hidden_channels, out_channels, heads, epochs
+import os
+
+# Stops fragmentation of memory, freeing up allocated but unused memory
+os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 
 def train(graph_list, graph_information, epochs, batch_size=32):
     """
@@ -12,7 +17,7 @@ def train(graph_list, graph_information, epochs, batch_size=32):
     
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Training on: {device}")
-
+    
     model = GAT(hidden_channels, out_channels, heads).to(device)
 
     optimiser = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
@@ -25,12 +30,15 @@ def train(graph_list, graph_information, epochs, batch_size=32):
     )
     criterion = torch.nn.MSELoss()
     
+    # For automatic mixed precision
+    scaler = GradScaler()
+    
     # attach targets to each Data object so they travel with the batch correctly
     targets = torch.as_tensor([g['targets'] for g in graph_information], dtype=torch.float)
     dates = torch.as_tensor([g['day'] for g in graph_information], dtype=torch.float)
     for d, y, date in zip(graph_list, targets, dates):
         d.y = y.view(1, -1) if y.dim() == 0 else y.unsqueeze(0)
-        d.date_feat = encode_date(date).unsqueeze(0)
+        d.date_feat = encode_date(date).view(1,-1)
     
     loader = DataLoader(
         graph_list,
@@ -43,12 +51,14 @@ def train(graph_list, graph_information, epochs, batch_size=32):
     for epoch in range(epochs):
         total_loss = 0.0
         for batch in loader:
-            batch.to(device, non_blocking=True)
+            batch = batch.to(device, non_blocking=True)
             optimiser.zero_grad()
-            output = model(batch.x, batch.edge_index, batch.batch, batch.date_feat)
-            loss = criterion(output, batch.y)
-            loss.backward()
-            optimiser.step()
+            with autocast(device_type='cuda', dtype=torch.float16):
+                output = model(batch.x, batch.edge_index, batch.batch, batch.date_feat)
+                loss = criterion(output, batch.y)
+            scaler.scale(loss).backward()
+            scaler.step(optimiser)
+            scaler.update()
             total_loss += loss.item() * batch.num_graphs
         
         avg_loss = total_loss / len(graph_list)
@@ -68,7 +78,7 @@ def train(graph_list, graph_information, epochs, batch_size=32):
     return model
 
 if __name__ == "__main__":
-
+    
     print("torch version : ", torch.__version__)
     print("cuda available? : ", torch.cuda.is_available())
     print("cuda version: ", torch.version.cuda)

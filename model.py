@@ -2,8 +2,8 @@ import torch
 from torch_geometric.nn import GATv2Conv, global_mean_pool
 import torch.nn.functional as F
 
-hidden_channels = 256
-heads = 8
+hidden_channels = 64
+heads = 4
 out_channels = 14
 epochs = 200
 
