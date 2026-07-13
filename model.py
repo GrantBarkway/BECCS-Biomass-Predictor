@@ -1,6 +1,7 @@
 import torch
 from torch_geometric.nn import GATv2Conv, global_mean_pool
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 hidden_channels = 64
 heads = 4
@@ -18,11 +19,23 @@ class GAT(torch.nn.Module):
         self.dropout = torch.nn.Dropout(p=0.2)
     
     def forward(self, x, edge_index, batch, date_feat):
-        x = F.elu(self.conv1(x, edge_index))
-        x = self.dropout(x)
-        x = F.elu(self.conv2(x, edge_index))
-        x = self.dropout(x)
-        x = F.elu(self.conv3(x, edge_index))
+        
+        if self.training:
+            x.requires_grad_(True)
+        
+        def custom_forward(feat):
+            x = F.elu(self.conv1(feat, edge_index))
+            x = self.dropout(x)
+            x = F.elu(self.conv2(x, edge_index))
+            x = self.dropout(x)
+            x = F.elu(self.conv3(x, edge_index))
+            return x
+        
+        if self.training:
+            x = checkpoint(custom_forward, x, use_reentrant=False)
+        else:
+            x = custom_forward(x)
+        
         x = global_mean_pool(x, batch)
         x = torch.cat([x, date_feat], dim=1)  # merge in date info before final layer
         return self.lin(x)
