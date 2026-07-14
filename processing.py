@@ -94,7 +94,7 @@ def images_to_graph(filepaths, target_pixels_per_segment, n_workers):
             if g.x is not None:
                 g.x = (g.x - feature_mean) / (feature_std + 1e-8)
     
-    return result
+    return result, feature_mean, feature_std
 
 def encode_date(day_of_year, period=365.25):
     """

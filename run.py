@@ -12,7 +12,12 @@ def run_model(checkpoint_filepath, input_data, day):
     model.to(device)
     model.eval()
     
+    feature_mean = checkpoint['feature_mean']
+    feature_std = checkpoint['feature_std']
+
     input_data = input_data.to(device)
+    input_data.x = (input_data.x - feature_mean) / (feature_std + 1e-8)
+
     date_feat = encode_date(day).to(device).unsqueeze(0)
 
     if not hasattr(input_data, 'batch') or input_data.batch is None:
@@ -23,13 +28,12 @@ def run_model(checkpoint_filepath, input_data, day):
     with torch.no_grad():
         predictions = model(input_data.x, input_data.edge_index, batch, date_feat)
 
-    # Reverses normalization of tensors
     return torch.expm1(predictions)
 
 # Calculates mean absolute percentage error for validation
 def calculate_validation_error(model_prediction, target):
     mape = MeanAbsolutePercentageError()
-    return mape(model_prediction.cpu(), target).item() * 100
+    return mape(model_prediction.cpu().squeeze(), target).item() * 100
 
 # Calculates average validation error across a set of input data and target lists
 def calculate_set_validation_error(checkpoint_filepath, input_data_list, target_list, date_list):

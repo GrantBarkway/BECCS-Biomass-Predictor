@@ -9,7 +9,7 @@ import os
 # Stops fragmentation of memory, freeing up allocated but unused memory
 os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 
-def train(graph_list, graph_information, epochs, batch_size=32):
+def train(graph_list, graph_information, epochs, feature_mean, feature_std, batch_size=32):
     """
     data_list: list of torch_geometric.data.Data objects (one per image/graph)
     targets:   list or tensor of target values, one per graph
@@ -76,12 +76,14 @@ def train(graph_list, graph_information, epochs, batch_size=32):
                 'model_state_dict': model.state_dict(),
                 'optimiser_state_dict': optimiser.state_dict(),
                 'loss': avg_loss,
+                'feature_mean': feature_mean,
+                'feature_std': feature_std,
             }, f'data/checkpoints/checkpoint_epoch{epoch}.pt')
     
     return model
 
 if __name__ == "__main__":
-
+    
     print("torch version : ", torch.__version__)
     print("cuda available? : ", torch.cuda.is_available())
     print("cuda version: ", torch.version.cuda)
@@ -89,11 +91,11 @@ if __name__ == "__main__":
     device_ids = list(range(torch.cuda.device_count()))
     print("cuda device id: ", *device_ids, sep=", ")
 
-    graph_data = images_to_graph(data.keys(), 50, 16)
+    graph_data, feature_mean, feature_std = images_to_graph(data.keys(), 50, 16)
     print("Graph data length: ", len(graph_data))
     graph_information = list(data.values())
     print("Graph information length: ", len(graph_information))
-
-    train(graph_data, graph_information, epochs, 1)
+    
+    train(graph_data, graph_information, epochs, feature_mean, feature_std, 1)
     
     print(f"gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
