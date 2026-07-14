@@ -171,7 +171,7 @@ def get_images(geojson_filepath, max_retries=5, samples_per_province=1):
 
                 raw_tif_path = str(tif_paths[0])
                 final_path = f"{OUTPUT_DIR}/{start_str}_{end_str}_{province_name}.tif"
-
+                
                 shutil.move(raw_tif_path, final_path)
                 
                 leftover_dir = os.path.dirname(raw_tif_path)

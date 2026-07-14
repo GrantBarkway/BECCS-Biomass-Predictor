@@ -95,3 +95,5 @@ if __name__ == "__main__":
     print("Graph information length: ", len(graph_information))
 
     train(graph_data, graph_information, epochs, 1)
+    
+    print(f"gpu used {torch.cuda.max_memory_allocated(device=None)} memory")

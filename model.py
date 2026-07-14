@@ -3,7 +3,7 @@ from torch_geometric.nn import GINConv, global_mean_pool
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
-hidden_channels = 256
+hidden_channels = 128
 out_channels = 14
 epochs = 50
 
@@ -21,7 +21,7 @@ class GIN(torch.nn.Module):
         self.conv2 = GINConv(make_gin_mlp(hidden_channels, hidden_channels), train_eps=True)
         self.conv3 = GINConv(make_gin_mlp(hidden_channels, hidden_channels), train_eps=True)
         self.lin = torch.nn.Linear(hidden_channels + date_dim, out_channels)
-
+        
         self.dropout = torch.nn.Dropout(p=0.2)
 
     def forward(self, x, edge_index, batch, date_feat):
