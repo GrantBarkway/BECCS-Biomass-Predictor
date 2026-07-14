@@ -3,9 +3,9 @@ from torch_geometric.nn import GINConv, global_mean_pool
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
-hidden_channels = 64
+hidden_channels = 256
 out_channels = 14
-epochs = 30
+epochs = 50
 
 def make_gin_mlp(in_dim, hidden_dim):
     return torch.nn.Sequential(

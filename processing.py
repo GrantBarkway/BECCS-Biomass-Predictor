@@ -30,8 +30,6 @@ def image_to_graph(filepath, target_pixels_per_segment):
         print("Num nodes: ", image_file.x.shape[0])
         print("Num edges: ", image_file.edge_index.shape[1])
         return image_file
-    else:
-        print("Something went wrong with filepath: ", image_data_file)
     
     # Read all bands directly: shape (bands, height, width)
     with rasterio.open(filepath) as src:
@@ -67,7 +65,7 @@ def image_to_graph(filepath, target_pixels_per_segment):
     torch.save(data, image_data_file)
     
     print("Completed processing for filepath: ", filepath)
-
+    
     return data
 
 def images_to_graph(filepaths, target_pixels_per_segment, n_workers):
@@ -76,6 +74,25 @@ def images_to_graph(filepaths, target_pixels_per_segment, n_workers):
     
     with Pool(n_workers) as pool:
         result = pool.map(worker_fn, filepaths)
+    
+    # Normalization
+    tensor_list = []
+    for g in result:
+        x = getattr(g, "x", None)
+        if isinstance(x, torch.Tensor):
+            tensor_list.append(x)
+    
+    if len(tensor_list) == 0:
+        return result
+    
+    all_x = torch.cat(tensor_list, dim=0)
+    feature_mean = all_x.mean(dim=0)
+    feature_std = all_x.std(dim=0)
+    
+    for g in result:
+        if isinstance(getattr(g, "x", None), torch.Tensor):
+            if g.x is not None:
+                g.x = (g.x - feature_mean) / (feature_std + 1e-8)
     
     return result
 
@@ -91,4 +108,4 @@ def encode_date(day_of_year, period=365.25):
 # Make graph from the images in data.py
 # Does NOT train anything
 if __name__ == "__main__":
-    graph_data = images_to_graph(data.keys(), 100, 16)
+    graph_data = images_to_graph(data.keys(), 50, 16)

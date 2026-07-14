@@ -1,5 +1,5 @@
-from model import GAT, hidden_channels, out_channels, heads
+from model import GIN, hidden_channels, out_channels
 
 def run():
-    model = GAT(hidden_channels, out_channels, heads)
+    model = GIN(hidden_channels, out_channels)
     

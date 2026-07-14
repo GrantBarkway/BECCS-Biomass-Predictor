@@ -2,7 +2,7 @@ import torch
 from torch_geometric.loader import DataLoader
 from processing import images_to_graph, encode_date
 from data.data import data
-from torch.amp import autocast, GradScaler
+from torch.amp import autocast
 from model import GIN, hidden_channels, out_channels, epochs
 import os
 
@@ -30,13 +30,14 @@ def train(graph_list, graph_information, epochs, batch_size=32):
     )
     criterion = torch.nn.MSELoss()
     
-    # For automatic mixed precision
-    scaler = GradScaler()
-    
     # attach targets to each Data object so they travel with the batch correctly
     targets = torch.as_tensor([g['targets'] for g in graph_information], dtype=torch.float)
+    
+    # Transform targets for more efficient training use torch.expm1 to reverse when evaluating/running
+    targets_transformed = torch.log1p(targets)
+    
     dates = torch.as_tensor([g['day'] for g in graph_information], dtype=torch.float)
-    for d, y, date in zip(graph_list, targets, dates):
+    for d, y, date in zip(graph_list, targets_transformed, dates):
         d.y = y.view(1, -1) if y.dim() == 0 else y.unsqueeze(0)
         d.date_feat = encode_date(date).view(1,-1)
     
@@ -59,9 +60,8 @@ def train(graph_list, graph_information, epochs, batch_size=32):
             with autocast(device_type='cuda', dtype=torch.bfloat16):
                 output = model(batch.x, batch.edge_index, batch.batch, batch.date_feat)
                 loss = criterion(output, batch.y)
-            scaler.scale(loss).backward()
-            scaler.step(optimiser)
-            scaler.update()
+            loss.backward()
+            optimiser.step()
             total_loss += loss.item() * batch.num_graphs
         
         avg_loss = total_loss / len(graph_list)
@@ -81,7 +81,7 @@ def train(graph_list, graph_information, epochs, batch_size=32):
     return model
 
 if __name__ == "__main__":
-    
+
     print("torch version : ", torch.__version__)
     print("cuda available? : ", torch.cuda.is_available())
     print("cuda version: ", torch.version.cuda)
@@ -90,6 +90,8 @@ if __name__ == "__main__":
     print("cuda device id: ", *device_ids, sep=", ")
 
     graph_data = images_to_graph(data.keys(), 50, 16)
+    print("Graph data length: ", len(graph_data))
     graph_information = list(data.values())
+    print("Graph information length: ", len(graph_information))
 
     train(graph_data, graph_information, epochs, 1)
