@@ -9,6 +9,10 @@ import os
 # Stops fragmentation of memory, freeing up allocated but unused memory
 os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 
+def weighted_mse(output, target, zero_weight=1.0, nonzero_weight=10.0):
+    weights = torch.where(target > 0, nonzero_weight, zero_weight)
+    return (weights * (output - target) ** 2).mean()
+
 def train(graph_list, graph_information, epochs, feature_mean, feature_std, batch_size=32):
     """
     data_list: list of torch_geometric.data.Data objects (one per image/graph)
@@ -25,10 +29,10 @@ def train(graph_list, graph_information, epochs, feature_mean, feature_std, batc
         optimiser,
         mode='min',
         factor=0.5,
-        patience=50,
+        patience=10,
         min_lr=1e-5
     )
-    criterion = torch.nn.MSELoss()
+    criterion = weighted_mse
     
     # attach targets to each Data object so they travel with the batch correctly
     targets = torch.as_tensor([g['targets'] for g in graph_information], dtype=torch.float)
@@ -49,6 +53,7 @@ def train(graph_list, graph_information, epochs, feature_mean, feature_std, batc
     )
     
     model.train()
+    best_loss = float('inf')
     for epoch in range(epochs):
         total_loss = 0.0
         for batch in loader:
@@ -67,18 +72,23 @@ def train(graph_list, graph_information, epochs, feature_mean, feature_std, batc
         avg_loss = total_loss / len(graph_list)
         scheduler.step(avg_loss)
         
-        if epoch % 10 == 0:
-            print(f'Epoch {epoch}, Loss: {avg_loss:.4f}')
+        print(f'Epoch {epoch}, Loss: {avg_loss:.4f}')
         
+        epoch_info = {
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimiser_state_dict': optimiser.state_dict(),
+            'loss': avg_loss,
+            'feature_mean': feature_mean,
+            'feature_std': feature_std,
+        }
+
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            torch.save(epoch_info, 'data/checkpoints/checkpoint_best.pt')
+
         if epoch % 50 == 0 or epoch == epochs - 1:
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimiser_state_dict': optimiser.state_dict(),
-                'loss': avg_loss,
-                'feature_mean': feature_mean,
-                'feature_std': feature_std,
-            }, f'data/checkpoints/checkpoint_epoch{epoch}.pt')
+            torch.save(epoch_info, f'data/checkpoints/checkpoint_epoch{epoch}.pt')
     
     return model
 

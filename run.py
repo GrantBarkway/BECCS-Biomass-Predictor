@@ -1,5 +1,6 @@
 import torch
 from torchmetrics.regression import MeanAbsolutePercentageError
+from torcheval.metrics.functional import r2_score
 from model import GIN, hidden_channels, out_channels
 from processing import encode_date
 
@@ -50,11 +51,13 @@ def calculate_set_validation_error(checkpoint_filepath, input_data_list, target_
 
     return total_error/number_of_inputs
 
-checkpoint_filepath = "data/checkpoints/checkpoint_epoch49.pt"
+checkpoint_filepath = "data/checkpoints/checkpoint_best.pt"
 input_data = torch.load("data/processed/2019-02-24_2019-03-10_Ang Thong.pt", weights_only=False)
 day = 62
-prediction = run_model(checkpoint_filepath, input_data, day)
-print("Predicted tensor: ", prediction)
+prediction = run_model(checkpoint_filepath, input_data, day).squeeze()
 target_tensor = torch.tensor([0,0,192033,0,0,0,0,46853,0,0,0,82300,0,28447], dtype=torch.float)
+r_squared = r2_score(prediction.cpu(), target_tensor)
+print("Predicted tensor: ", prediction)
 print("Target tensor: ", target_tensor)
 print("Validation error: ", calculate_validation_error(prediction, target_tensor))
+print("R^2 score: ", r_squared)
