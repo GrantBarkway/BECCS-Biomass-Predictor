@@ -52,10 +52,10 @@ def calculate_set_validation_error(checkpoint_filepath, input_data_list, target_
     return total_error/number_of_inputs
 
 checkpoint_filepath = "data/checkpoints/checkpoint_best.pt"
-input_data = torch.load("data/processed/2019-02-24_2019-03-10_Ang Thong.pt", weights_only=False)
-day = 62
+input_data = torch.load("data/processed/2021-12-03_2021-12-17_Sakon Nakhon.pt", weights_only=False)
+day = 344
 prediction = run_model(checkpoint_filepath, input_data, day).squeeze()
-target_tensor = torch.tensor([0,0,192033,0,0,0,0,46853,0,0,0,82300,0,28447], dtype=torch.float)
+target_tensor = torch.tensor([1167,30117,385023,100391,5542,29168,140547,301951,0,9334,0,165010,41127,183327], dtype=torch.float)
 r_squared = r2_score(prediction.cpu(), target_tensor)
 print("Predicted tensor: ", prediction)
 print("Target tensor: ", target_tensor)
