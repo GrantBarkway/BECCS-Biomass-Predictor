@@ -15,9 +15,20 @@ def run_model(checkpoint_filepath, input_data, day):
     
     feature_mean = checkpoint['feature_mean']
     feature_std = checkpoint['feature_std']
+    
+    print("feature_mean:", feature_mean)
+    print("feature_std:", feature_std)
+    print("feature_std max:", feature_std.max().item())
+    print("feature_std min:", feature_std.min().item())
+
+    assert torch.isfinite(input_data.x).all(), "non-finite values in input_data.x before normalization"
+    assert torch.isfinite(feature_mean).all(), "non-finite feature_mean in checkpoint"
+    assert torch.isfinite(feature_std).all(), "non-finite feature_std in checkpoint"
 
     input_data = input_data.to(device)
     input_data.x = (input_data.x - feature_mean) / (feature_std + 1e-8)
+
+    assert torch.isfinite(input_data.x).all(), "non-finite values in input_data.x after normalization"
 
     date_feat = encode_date(day).to(device).unsqueeze(0)
 
@@ -52,10 +63,10 @@ def calculate_set_validation_error(checkpoint_filepath, input_data_list, target_
     return total_error/number_of_inputs
 
 checkpoint_filepath = "data/checkpoints/checkpoint_best.pt"
-input_data = torch.load("data/processed/2021-12-03_2021-12-17_Sakon Nakhon.pt", weights_only=False)
-day = 344
+input_data = torch.load("data/processed/2019-02-19_2019-03-05_Si Sa Ket.pt", weights_only=False)
+day = 57
 prediction = run_model(checkpoint_filepath, input_data, day).squeeze()
-target_tensor = torch.tensor([1167,30117,385023,100391,5542,29168,140547,301951,0,9334,0,165010,41127,183327], dtype=torch.float)
+target_tensor = torch.tensor([398,31474,512583,104915,1890,9946,146881,61805,56181,3183,7328,219678,14024,37524], dtype=torch.float)
 r_squared = r2_score(prediction.cpu(), target_tensor)
 print("Predicted tensor: ", prediction)
 print("Target tensor: ", target_tensor)

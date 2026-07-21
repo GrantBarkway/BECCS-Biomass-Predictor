@@ -33,7 +33,7 @@ def image_to_graph(filepath, target_pixels_per_segment):
     
     # Read all bands directly: shape (bands, height, width)
     with rasterio.open(filepath) as src:
-        image_tensor = torch.from_numpy(src.read().astype(np.float16))
+        image_tensor = torch.from_numpy(src.read().astype(np.float32))
     
     channels, height, width = image_tensor.shape
     n_segments = int((height * width) / target_pixels_per_segment)
@@ -108,4 +108,4 @@ def encode_date(day_of_year, period=365.25):
 # Make graph from the images in data.py
 # Does NOT train anything
 if __name__ == "__main__":
-    graph_data = images_to_graph(data.keys(), 50, 16)
+    graph_data = images_to_graph(data.keys(), 50, 10)

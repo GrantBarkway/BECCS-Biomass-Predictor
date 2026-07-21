@@ -5,7 +5,7 @@ from torch.utils.checkpoint import checkpoint
 
 hidden_channels = 256
 out_channels = 14
-epochs = 50
+epochs = 200
 
 def make_gin_mlp(in_dim, hidden_dim):
     return torch.nn.Sequential(

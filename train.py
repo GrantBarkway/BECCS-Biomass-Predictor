@@ -19,19 +19,19 @@ def train(graph_list, graph_information, epochs, feature_mean, feature_std, accu
 
     model = GIN(hidden_channels, out_channels).to(device)
 
-    optimiser = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+    optimiser = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimiser, mode='min', factor=0.5, patience=10, min_lr=1e-5
     )
     criterion = weighted_mse
-
+    
     targets = torch.as_tensor([g['targets'] for g in graph_information], dtype=torch.float)
     targets_transformed = torch.log1p(targets)
     dates = torch.as_tensor([g['day'] for g in graph_information], dtype=torch.float)
     for d, y, date in zip(graph_list, targets_transformed, dates):
         d.y = y.view(1, -1) if y.dim() == 0 else y.unsqueeze(0)
         d.date_feat = encode_date(date).view(1, -1)
-
+    
     loader = DataLoader(
         graph_list,
         batch_size=1,
@@ -92,11 +92,11 @@ if __name__ == "__main__":
     device_ids = list(range(torch.cuda.device_count()))
     print("cuda device id: ", *device_ids, sep=", ")
 
-    graph_data, feature_mean, feature_std = images_to_graph(data.keys(), 50, 16)
+    graph_data, feature_mean, feature_std = images_to_graph(data.keys(), 50, 10)
     print("Graph data length: ", len(graph_data))
     graph_information = list(data.values())
     print("Graph information length: ", len(graph_information))
     
-    train(graph_data, graph_information, epochs, feature_mean, feature_std, 3)
+    train(graph_data, graph_information, epochs, feature_mean, feature_std, 8)
     
     print(f"gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
