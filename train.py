@@ -3,7 +3,7 @@ from torch_geometric.loader import DataLoader
 from processing import images_to_graph, encode_date
 from data.data import data
 from torch.amp import autocast
-from model import GIN, hidden_channels, out_channels, epochs
+from model import GAT, hidden_channels, out_channels, heads, epochs
 import os
 
 # Stops fragmentation of memory, freeing up allocated but unused memory
@@ -16,8 +16,8 @@ def weighted_mse(output, target, zero_weight=1.0, nonzero_weight=15.0):
 def train(graph_list, graph_information, epochs, feature_mean, feature_std, accumulation_steps=16):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Training on: {device}")
-
-    model = GIN(hidden_channels, out_channels).to(device)
+    
+    model = GAT(hidden_channels, out_channels, heads).to(device)
 
     optimiser = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -34,11 +34,11 @@ def train(graph_list, graph_information, epochs, feature_mean, feature_std, accu
     
     loader = DataLoader(
         graph_list,
-        batch_size=1,
+        batch_size=4,
         shuffle=True,
         pin_memory=True
     )
-
+    
     model.train()
     best_loss = float('inf')
     for epoch in range(epochs):
@@ -59,7 +59,7 @@ def train(graph_list, graph_information, epochs, feature_mean, feature_std, accu
             total_loss += loss.item() * accumulation_steps * batch.num_graphs
 
             if (step + 1) % accumulation_steps == 0 or (step + 1) == len(loader):
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
                 optimiser.step()
                 optimiser.zero_grad()
 
@@ -78,7 +78,7 @@ def train(graph_list, graph_information, epochs, feature_mean, feature_std, accu
         if avg_loss < best_loss:
             best_loss = avg_loss
             torch.save(epoch_info, 'data/checkpoints/checkpoint_best.pt')
-        if epoch % 50 == 0 or epoch == epochs - 1:
+        if epoch % 10 == 0 or epoch == epochs - 1:
             torch.save(epoch_info, f'data/checkpoints/checkpoint_epoch{epoch}.pt')
 
     return model
@@ -92,11 +92,11 @@ if __name__ == "__main__":
     device_ids = list(range(torch.cuda.device_count()))
     print("cuda device id: ", *device_ids, sep=", ")
 
-    graph_data, feature_mean, feature_std = images_to_graph(data.keys(), 50, 10)
+    graph_data, feature_mean, feature_std = images_to_graph(data.keys(), 300, 10)
     print("Graph data length: ", len(graph_data))
     graph_information = list(data.values())
     print("Graph information length: ", len(graph_information))
     
-    train(graph_data, graph_information, epochs, feature_mean, feature_std, 8)
+    train(graph_data, graph_information, epochs, feature_mean, feature_std, 4)
     
     print(f"gpu used {torch.cuda.max_memory_allocated(device=None)} memory")

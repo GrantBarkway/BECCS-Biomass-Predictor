@@ -1,14 +1,14 @@
 import torch
 from torchmetrics.regression import MeanAbsolutePercentageError
 from torcheval.metrics.functional import r2_score
-from model import GIN, hidden_channels, out_channels
+from model import GAT, hidden_channels, out_channels, heads
 from processing import encode_date
 
 def run_model(checkpoint_filepath, input_data, day):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    model = GIN(hidden_channels, out_channels)
-    checkpoint = torch.load(checkpoint_filepath, map_location=device)
+    
+    model = GAT(hidden_channels, out_channels, heads)
+    checkpoint = torch.load(checkpoint_filepath, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
     model.eval()

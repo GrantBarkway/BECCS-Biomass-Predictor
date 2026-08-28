@@ -108,4 +108,4 @@ def encode_date(day_of_year, period=365.25):
 # Make graph from the images in data.py
 # Does NOT train anything
 if __name__ == "__main__":
-    graph_data = images_to_graph(data.keys(), 50, 10)
+    graph_data = images_to_graph(data.keys(), 300, 10)
